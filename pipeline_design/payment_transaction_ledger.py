@@ -6,7 +6,7 @@ Problem: Payment Transaction Ledger
 
 from collections import defaultdict
 
-# ---------------------- Part I: Basic Tracking ----------------------
+# ---------------------- Part II: Rejected Transactions ----------------------
 
 """
 EXAMPLE
@@ -28,6 +28,7 @@ Output:
 
 def processTransactions(transactions: list[str]) -> dict:
 	transaction_map = {}
+	rejected = []
 	for entry in transactions:
 		transaction_data = entry.split(",")
 		if len(transaction_data) < 3:
@@ -38,6 +39,9 @@ def processTransactions(transactions: list[str]) -> dict:
 		if acct_id in transaction_map.keys():
 			print("Key found")
 			currBalance = transaction_map[acct_id]["balance"] + int(transaction_data[2])
+			if currBalance <= 0:
+				rejected.append(entry)
+				continue
 		else:
 			print("Key not found")
 			currBalance = int(transaction_data[2])
@@ -45,7 +49,7 @@ def processTransactions(transactions: list[str]) -> dict:
 			"timestamp": int(transaction_data[1]),
 			"balance": currBalance
 		}
-	return dict(sorted(transaction_map.items()))
+	return dict(sorted(transaction_map.items())), rejected
 
 def printLedger(accounts: dict):
 	output = []
@@ -59,9 +63,13 @@ def printAcctInfo(acct_id: str, acct_info: any):
 
 transactions = [
     "acct_001,1,500",
-    "acct_002,2,300",
-    "acct_001,3,-200",
-    "acct_002,4,-300"
+    "acct_001,2,-700",
+    "acct_002,3,100",
+    "acct_002,4,-50",
+    "acct_002,5,-80"
 ]
 
-ledger = printLedger(processTransactions(transactions))
+accounts, rejected = processTransactions(transactions)
+ledger = printLedger(accounts)
+print(ledger)
+print(rejected)
