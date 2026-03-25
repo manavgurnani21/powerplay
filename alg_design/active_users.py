@@ -11,61 +11,52 @@ from datetime import datetime, timedelta, date
 # Given: List of login events [(user_id: str, login_date: str)]
 # Login Date Format: YYYY-MM-DD (multiple possible logins per day)
 
-def extractDatetimeObj(date_time: str):
-	[date_split, time_split] = date_time.split(" ")
-	year, month, day = date_split.split("-")
-	hours, mins, seconds = time_split.split(":")
-	date_obj = datetime(int(year), int(month), int(day), int(hours), int(mins), int(seconds))
-	return date_obj
+class ActiveUserTracker:
 
-# Function that returns list of users who logged in on at least k distinct days
-def activeUsers(logins: list[tuple[str, str, str]], k: int) -> list[str]:
-	login_directory = defaultdict() # set <- distinct dates
+	login_directory = defaultdict()
 
-	active = []
-
-	# no logins
-	if logins == []:
-		return []  
+	def __init__(self, k: int):
+		self.k = k
 	
-	# for all pairs of login events
-	# 1. extract the login date
-	# 2. extract the logout date (next entry)
-	# 3. for the range of dates, add all dates to the set
-	for i in range(0,len(logins)-1,2):
-		# looking at current and next events (login/logout)
-		(curr_login_id, curr_login_date, curr_event_type) = logins[i]
-		(curr_logout_id, curr_logout_date, future_event_type) = logins[i+1]
-		if future_event_type != "LOGOUT" or curr_login_id != curr_logout_id:
-			break # inconsistency in login/logout
-		if curr_login_id not in login_directory.keys():
-			login_directory[curr_login_id] = set()
-		login_date = extractDatetimeObj(curr_login_date)
-		logout_date = extractDatetimeObj(curr_logout_date)
-		while login_date <= logout_date:
-			login_directory[curr_login_id].add(login_date.date())
-			login_date += timedelta(days=1)
+	def extractDatetimeObj(self, date_time: str): # do I even need this here?
+		[date_split, time_split] = date_time.split(" ")
+		year, month, day = date_split.split("-")
+		hours, mins, seconds = time_split.split(":")
+		date_obj = datetime(int(year), int(month), int(day), int(hours), int(mins), int(seconds))
+		return date_obj
 	
-	for user in login_directory.keys():
-		login_dates_sorted = sorted(login_directory[user]) # sort the set of dates
-		print(login_directory[user])
-		# check for the following:
-			# the kth element should be (oldest + k)
-		for i in range(len(login_dates_sorted)-k+1):
-			print(login_dates_sorted[i+k-1])
-			print(login_dates_sorted[i] + timedelta(days=k-1))
-			if login_dates_sorted[i+k-1] == login_dates_sorted[i] + timedelta(days=k-1) and user not in active:
+	def process_event(self, user_id: str, timestamp: str, event_type: str) -> None:
+		# processing a singular event (adding to user login directory)
+		if user_id not in self.login_directory.keys():
+			if event_type != "LOGIN":
+				return
+			self.login_directory[user_id] = defaultdict()
+		
+		curr_date = self.extractDatetimeObj(timestamp)
+		prev_date = self.login_directory[user_id]["last_date"] if "last_date" in self.login_directory[user_id].keys() else curr_date
+		curr_streak = self.login_directory[user_id]["streak"] if "streak" in self.login_directory[user_id].keys() else 1
+		delta = (curr_date - prev_date).days
+		if delta == 1: # update current streak if logged in yesterday
+			curr_streak += 1
+		elif delta >= 1:
+			curr_streak = 1 # reset streak if broken
+		print(curr_streak)
+		login_data = {
+			"last_date": curr_date,
+			"streak": curr_streak
+		}
+		self.login_directory[user_id] = login_data
+
+	# Checks to see in login directory for streaks of k+ days
+	def activeUsers(self) -> list[str]:
+		active = []
+		for user in self.login_directory.keys():
+			if self.login_directory[user]["streak"] >= self.k:
 				active.append(user)
-
-	return active
+		return active
 	
-logins = [
-    ("alice", "2024-01-01 08:00:00", "LOGIN"),
-    ("alice", "2024-01-01 17:00:00", "LOGOUT"),
-    ("alice", "2024-01-02 08:00:00", "LOGIN"),
-    ("alice", "2024-01-02 17:00:00", "LOGOUT"),
-    ("alice", "2024-01-03 08:00:00", "LOGIN"),
-    ("alice", "2024-01-03 17:00:00", "LOGOUT")
-]
-
-print(activeUsers(logins, k=4))
+tracker = ActiveUserTracker(k=3)
+tracker.process_event("alice", "2024-01-01 08:00:00", "LOGIN")
+tracker.process_event("alice", "2024-01-02 08:00:00", "LOGIN")
+tracker.process_event("alice", "2024-01-03 08:00:00", "LOGIN")
+print(tracker.activeUsers())
